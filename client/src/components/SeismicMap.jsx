@@ -19,24 +19,33 @@ export default function SeismicMap() {
     const [departamentos, setDepartamentos] = useState([]);
     const [municipios, setMunicipios] = useState([]);
     
-    // Estados de filtros
+    // Estados de filtros (inicializados en 'TODOS' para coincidir con las opciones)
     const [selectedDepto, setSelectedDepto] = useState('TODOS');
     const [selectedMuni, setSelectedMuni] = useState('TODOS');
     const [selectedAnio, setSelectedAnio] = useState('TODOS');
     const [selectedMes, setSelectedMes] = useState('TODOS');
     const [mapCenter, setMapCenter] = useState([4.6, -74.2]); // Centro de Colombia por defecto
 
+    // Cargar sismos cada vez que cambie el año o el mes seleccionado
     useEffect(() => {
-        fetch('https://seis-sismimonitor-green-hacker-team.onrender.com/api/sismos')
+        const url = `https://seis-sismimonitor-green-hacker-team.onrender.com/api/sismos?anio=${selectedAnio}&mes=${selectedMes}`;
+        
+        fetch(url)
             .then(res => res.json())
             .then(data => {
-                setSismos(data);
-                // Extraer departamentos únicos
-                const deptosSet = [...new Set(data.map(s => s.departamento).filter(Boolean))].sort();
-                setDepartamentos(deptosSet);
+                if (Array.isArray(data)) {
+                    setSismos(data);
+                    // Extraer departamentos únicos si la lista está vacía
+                    if (departamentos.length === 0 && data.length > 0) {
+                        const deptosSet = [...new Set(data.map(s => s.departamento).filter(Boolean))].sort();
+                        setDepartamentos(deptosSet);
+                    }
+                } else {
+                    setSismos([]);
+                }
             })
             .catch(err => console.error("Error al cargar sismos para el mapa:", err));
-    }, []);
+    }, [selectedAnio, selectedMes]);
 
     // Actualizar lista de municipios según el departamento seleccionado
     useEffect(() => {
@@ -55,18 +64,11 @@ export default function SeismicMap() {
         }
     }, [selectedDepto, sismos]);
 
-    // Filtrado de sismos
+    // Filtrado local por Departamento y Municipio sobre los datos ya traídos del año/mes
     const filteredSismos = sismos.filter(s => {
-        const fecha = s.fecha_hora ? new Date(s.fecha_hora) : null;
-        const anio = fecha ? fecha.getFullYear().toString() : '';
-        const mes = fecha ? (fecha.getMonth() + 1).toString() : '';
-
         const matchDepto = selectedDepto === 'TODOS' || s.departamento === selectedDepto;
         const matchMuni = selectedMuni === 'TODOS' || s.municipio === selectedMuni;
-        const matchAnio = selectedAnio === 'TODOS' || anio === selectedAnio;
-        const matchMes = selectedMes === 'TODOS' || mes === selectedMes;
-
-        return matchDepto && matchMuni && matchAnio && matchMes;
+        return matchDepto && matchMuni;
     });
 
     // Actualizar centro del mapa si hay sismos filtrados
