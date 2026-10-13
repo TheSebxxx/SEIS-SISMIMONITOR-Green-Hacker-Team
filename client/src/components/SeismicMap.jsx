@@ -27,7 +27,7 @@ export default function SeismicMap() {
     const [mapCenter, setMapCenter] = useState([4.6, -74.2]); // Centro de Colombia por defecto
 
     useEffect(() => {
-        fetch('http://localhost:5000/api/sismos')
+        fetch('https://seis-sismimonitor-green-hacker-team.onrender.com/api/sismos')
             .then(res => res.json())
             .then(data => {
                 setSismos(data);

@@ -9,7 +9,7 @@ export default function Dashboard() {
     const [riesgoData, setRiesgoData] = useState([]);
 
     useEffect(() => {
-        fetch('http://localhost:5000/api/sismos')
+        fetch('https://seis-sismimonitor-green-hacker-team.onrender.com/api/sismos')
             .then(res => res.json())
             .then(data => {
                 setSismos(data);

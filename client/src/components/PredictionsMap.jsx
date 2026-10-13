@@ -21,7 +21,7 @@ export default function PredictionsMap() {
     const [mapCenter, setMapCenter] = useState([6.8, -73.12]); // Centrado en Santander/Bucaramanga
 
     useEffect(() => {
-        fetch('http://localhost:5000/api/clasificaciones')
+        fetch('https://seis-sismimonitor-green-hacker-team.onrender.com/api/clasificaciones')
             .then(res => res.json())
             .then(data => setZonas(data))
             .catch(err => console.error("Error al cargar clasificaciones ML:", err));
