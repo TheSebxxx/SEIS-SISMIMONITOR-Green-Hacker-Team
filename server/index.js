@@ -1,24 +1,34 @@
+import express from 'express';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { createClient } from '@supabase/supabase-js';
+
+// Apuntando correctamente al archivo .env ubicado en la raíz del proyecto
+dotenv.config({ path: '../.env' });
+
+const app = express(); // 👈 ¡Debe ir aquí arriba, antes de usar app.get o app.use!
+app.use(cors());
+app.use(express.json());
+
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+
+// Endpoint con filtros por año y mes optimizados
 app.get('/api/sismos', async (req, res) => {
     try {
         const { anio, mes } = req.query;
         let query = supabase.from('seismic_events').select('*');
 
-        // Si el usuario selecciona un año específico
         if (anio && anio !== 'Todos' && anio !== 'Todos los Años') {
-            // Suponiendo que tu columna de fecha se llama 'fecha_hora' (formato ISO o timestamp)
-            // Filtramos por el rango de ese año completo
             const startDate = `${anio}-01-01T00:00:00`;
             const endDate = `${anio}-12-31T23:59:59`;
             query = query.gte('fecha_hora', startDate).lte('fecha_hora', endDate);
         } else {
-            // Si no selecciona año, mantenemos el límite de los más recientes para no saturar
             query = query.order('fecha_hora', { ascending: false }).limit(5000);
         }
 
         const { data, error } = await query;
         if (error) throw error;
 
-        // Filtro adicional de mes en código si se seleccionó un mes específico
         let filteredData = data;
         if (mes && mes !== 'Todos los Meses') {
             const mesesMap = {
@@ -39,4 +49,20 @@ app.get('/api/sismos', async (req, res) => {
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
+});
+
+// Endpoint para las clasificaciones de riesgo del modelo ML
+app.get('/api/clasificaciones', async (req, res) => {
+    try {
+        const { data, error } = await supabase.from('zone_classifications').select('*');
+        if (error) throw error;
+        res.json(data);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+    console.log(`🚀 Servidor backend corriendo en el puerto ${PORT}`);
 });
