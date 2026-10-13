@@ -11,27 +11,66 @@ app.use(express.json());
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 
-// Endpoint con filtros robustos por año y mes
+// Endpoint con paginación masiva para "TODOS" y búsqueda filtrada por año específico
 app.get('/api/sismos', async (req, res) => {
     try {
         const { anio, mes } = req.query;
-        let query = supabase.from('seismic_events').select('*');
+        let data = [];
+        let error = null;
 
-        // Filtro por Año
+        // Si el usuario selecciona un año específico
         if (anio && anio !== 'TODOS' && anio !== 'Todos los Años') {
             const startDate = `${anio}-01-01T00:00:00`;
             const endDate = `${anio}-12-31T23:59:59`;
-            query = query.gte('fecha_hora', startDate).lte('fecha_hora', endDate);
+            
+            // Consultamos todos los sismos de ese año sin límite estricto de 5000
+            let query = supabase.from('seismic_events').select('*')
+                .gte('fecha_hora', startDate)
+                .lte('fecha_hora', endDate)
+                .order('fecha_hora', { ascending: false });
+
+            const response = await query;
+            data = response.data || [];
+            error = response.error;
         } else {
-            query = query.order('fecha_hora', { ascending: false }).limit(5000);
+            // Si selecciona "TODOS", aplicamos el sistema por lotes hasta 15,000 registros
+            let allData = [];
+            let batchSize = 1000;
+            let maxRecords = 15000;
+            let from = 0;
+            let to = batchSize - 1;
+            let fetching = true;
+
+            while (fetching && allData.length < maxRecords) {
+                const batchResponse = await supabase
+                    .from('seismic_events')
+                    .select('*')
+                    .order('fecha_hora', { ascending: false })
+                    .range(from, to);
+
+                if (batchResponse.error) throw batchResponse.error;
+
+                const batchData = batchResponse.data;
+                if (batchData && batchData.length > 0) {
+                    allData = allData.concat(batchData);
+                    if (batchData.length < batchSize || allData.length >= maxRecords) {
+                        fetching = false;
+                    } else {
+                        from += batchSize;
+                        to += batchSize;
+                    }
+                } else {
+                    fetching = false;
+                }
+            }
+            data = allData;
         }
 
-        const { data, error } = await query;
         if (error) throw error;
 
         let filteredData = data || [];
 
-        // Filtro por Mes (compatible con número '1' o texto 'Enero')
+        // Filtro por Mes (compatible con número o texto)
         if (mes && mes !== 'TODOS' && mes !== 'Todos los Meses') {
             let mesNum = parseInt(mes, 10);
 
